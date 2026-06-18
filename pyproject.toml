@@ -1,0 +1,24 @@
+[project]
+name = "kl-score"
+version = "0.1.0"
+description = "CLI standalone para scoring objetivo de wiki health da knowledge layer (meta-system ADR-013 + ADR-016 + ADR-003 cluster cognitive Adendo 2026-06-18). Consome graph Logseq markdown read-only e emite report standalone com 4 métricas v0 funcional (link_count + orphan_nodes + gaps_detected + enrichment_rate)."
+authors = [{name = "Fernando Furtado", email = "fppfurtado@outlook.com"}]
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.11"
+dependencies = [
+    "click>=8.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0"]
+
+[project.scripts]
+kl-score = "kl_score.cli:main"
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["kl_score*"]

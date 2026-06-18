@@ -1,0 +1,25 @@
+# Python build artifacts
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Bytecode + caches
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtualenvs (operator usa pip install -e local; venvs ad-hoc)
+.venv/
+venv/
+env/
+uv.lock
+
+# Editor + OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
