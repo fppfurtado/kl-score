@@ -68,9 +68,15 @@ def orphan_nodes(
     ]
 
 
-def _slug_triple_lowbar(entity: str) -> str:
-    """Slug Logseq :triple-lowbar — espaços viram ___, acentos preservados."""
-    return entity.replace(" ", "___")
+def _slug_logseq(entity: str) -> str:
+    """Slug Logseq `:file/name-format :triple-lowbar` per evidência empírica.
+
+    Regra observada em ~/Notes/logseq/logseq/config.edn:421 + filenames reais:
+    namespace separator `/` → `___`; `:` → `%3A` (URL-encoded). Espaços e
+    acentos PRESERVADOS no filename (regra NÃO se aplica a espaços, como o
+    nome `triple-lowbar` poderia sugerir).
+    """
+    return entity.replace("/", "___").replace(":", "%3A")
 
 
 def gaps_detected(
@@ -78,10 +84,8 @@ def gaps_detected(
 ) -> list[str]:
     """Entidades `[[Entity]]` mencionadas ≥ N vezes sem page correspondente.
 
-    Tolerância dual: tenta legacy (espaços preservados) E triple-lowbar (`___`);
-    match em qualquer das duas variantes zera o gap. Per probe em
-    ~/Notes/logseq/logseq/config.edn:421 (`:file/name-format :triple-lowbar`)
-    + evidência empírica de coexistência com legacy filenames.
+    Slug aplicado per regra `:triple-lowbar` observada empiricamente: `/` vira
+    `___`, `:` vira `%3A`, espaços/acentos preservados.
     """
     pages_dir = graph_root / "pages"
     mention_counts: Counter[str] = Counter()
@@ -95,9 +99,7 @@ def gaps_detected(
     for entity, count in sorted(mention_counts.items()):
         if count < min_mention_count:
             continue
-        legacy = pages_dir / f"{entity}.md"
-        triple = pages_dir / f"{_slug_triple_lowbar(entity)}.md"
-        if not legacy.exists() and not triple.exists():
+        if not (pages_dir / f"{_slug_logseq(entity)}.md").exists():
             gaps.append(entity)
 
     return gaps

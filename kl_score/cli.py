@@ -100,7 +100,7 @@ def score(
     out.append("### gaps_detected\n")
     out.append(
         f"Entidades `[[mencionadas]]` ≥ 2x sem page correspondente "
-        f"(legacy OR triple-lowbar, cross-graph): **{len(gaps)}**\n"
+        f"(slug `:triple-lowbar`, cross-graph): **{len(gaps)}**\n"
     )
     if gaps:
         out.append("Lista (max 20):\n")
