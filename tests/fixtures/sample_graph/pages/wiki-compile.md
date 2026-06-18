@@ -1,0 +1,1 @@
+- entity page existente target de [[wiki-compile]] em outras pages

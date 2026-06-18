@@ -1,0 +1,2 @@
+- bloco com [[wiki-compile]] e [[one-shot]]
+- outro bloco com [[Foo/Bar]] e [[2026_06_19]]
