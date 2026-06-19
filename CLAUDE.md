@@ -17,7 +17,7 @@ Python ≥3.11. `uv.lock` is gitignored — `pip` (editable) is the canonical wo
 
 CLI standalone (`kl-score`) that consumes a **Logseq markdown graph** read-only and emits a **wiki-health report** as standalone markdown. Operational layer of a multi-repo knowledge layer roadmap — substantive decisions live upstream, not here.
 
-**Hard invariant: the graph is read-only.** `kl-score` parses `pages/*.md` + `journals/*.md` and writes only to its own `reports/` directory. Never inject `quality-score::` properties or otherwise mutate the source graph (deferred to Onda 4+ if-pain).
+**Hard invariant: the graph is read-only.** `kl-score` parses `pages/*.md` + `journals/*.md` and writes only to its own `reports/` directory. Never inject `quality-score::` properties or otherwise mutate the source graph (writes still deferred; reads via `Page.quality_score` consumed by `metrics.enrichment_rate` since Onda 4 — see ADR-001 Adendo 2026-06-19).
 
 **v0 scope (4 metrics, 2 dimensions):**
 - `link_count`, `orphan_nodes`, `gaps_detected` (topology)

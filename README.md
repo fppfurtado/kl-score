@@ -13,7 +13,7 @@ Subset funcional cobrindo **topologia** + **taxa de progresso** (confiabilidade 
 | `link_count` | topologia | cross-link density por entity page | `≥ baseline_value × 0.8` |
 | `orphan_nodes` | topologia | isolamento de blocos `provenance:: #enriched` sem refs inbound | `≤ baseline_value × 1.2` |
 | `gaps_detected` | topologia | entidades referenciadas ≥N vezes sem entity page correspondente | `≤ baseline_value` |
-| `enrichment_rate` | taxa de progresso | blocos com `provenance:: #enriched` / total | `≥ baseline_value × 0.95` |
+| `enrichment_rate` | taxa de progresso | blocos com `provenance:: #enriched` / total — Onda 4: ponderado pelo `quality-score::` da page-pai (ver [ADR-001 § Adendo 2026-06-19](docs/decisions/ADR-001-metricas-canonical-v0.md)) | `≥ baseline_value × 0.95` |
 
 ## Install
 
@@ -36,7 +36,7 @@ kl-score score \
 kl-score score --graph ~/Notes/logseq --output reports/full-graph.md
 ```
 
-Output: report markdown standalone em `reports/<date>.md` com seção `## Métricas v0` + 4 sub-seções por métrica + valores numéricos + listas quando relevante. Graph permanece **read-only** — kl-score nunca muta o graph (property `quality-score::` inline deferida pra Onda 4+ if-pain per `meta-system` plano Onda 3 decisão pré-tomada 4).
+Output: report markdown standalone em `reports/<date>.md` com seção `## Métricas v0` + 4 sub-seções por métrica + valores numéricos + listas quando relevante. Graph permanece **read-only** — kl-score nunca muta o graph. Property `quality-score::` é **lida** pelo parser desde a Onda 4 (page-level, curada manualmente pelo operador no Logseq desktop; ver [ADR-001 § Adendo 2026-06-19](docs/decisions/ADR-001-metricas-canonical-v0.md)); kl-score nunca **injeta** o property (decisão preservada per `meta-system` plano Onda 3 pré-tomada 4).
 
 ## Dev
 
