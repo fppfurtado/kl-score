@@ -8,11 +8,18 @@ progresso (enrichment_rate). Decisões substantivas em
 
 from __future__ import annotations
 
+import warnings
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 from kl_score.parser import Page, iter_journals, iter_pages, parse_page
+
+_QUALITY_WEIGHTS: dict[str, float] = {
+    "completo": 1.0,
+    "parcial": 0.5,
+    "rascunho": 0.25,
+}
 
 
 @dataclass(frozen=True)
@@ -106,17 +113,41 @@ def gaps_detected(
 
 
 def enrichment_rate(graph_root: Path) -> float:
-    """Count blocos `provenance:: #enriched` / total blocos. Range [0.0, 1.0].
+    """Blocos `provenance:: #enriched` ponderados por `quality-score::` da page-pai / total. Range [0.0, 1.0].
+
+    Pesos: `#completo`=1.0, `#parcial`=0.5, `#rascunho`=0.25. Page sem
+    `quality-score::` ou com valor não-canonical → peso default 1.0 (backward-
+    compat numérica com v0: graph sem nenhum `quality-score::` produz valor
+    idêntico ao cálculo v0). Valores não-canonical disparam um warning único ao
+    fim do run listando pages afetadas — preserva auditabilidade do ADR-001 §
+    Benefícios sem quebrar runs em schema sujo.
 
     Dimensão taxa de progresso. Zero blocos → 0.0.
     """
     total = 0
-    enriched = 0
+    weighted_enriched = 0.0
+    unknown_quality_pages: list[Path] = []
     for page in _iter_all(graph_root):
+        score = page.quality_score
+        if score is None:
+            weight = 1.0
+        elif score in _QUALITY_WEIGHTS:
+            weight = _QUALITY_WEIGHTS[score]
+        else:
+            unknown_quality_pages.append(page.path)
+            weight = 1.0
         for block in page.blocks:
             total += 1
             if block.provenance == "enriched":
-                enriched += 1
+                weighted_enriched += weight
+    if unknown_quality_pages:
+        paths_str = ", ".join(str(p) for p in unknown_quality_pages)
+        warnings.warn(
+            f"quality-score:: com valor não-canonical em "
+            f"{len(unknown_quality_pages)} page(s): {paths_str}",
+            UserWarning,
+            stacklevel=2,
+        )
     if total == 0:
         return 0.0
-    return enriched / total
+    return weighted_enriched / total
