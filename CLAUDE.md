@@ -25,15 +25,13 @@ CLI standalone (`kl-score`) that consumes a **Logseq markdown graph** read-only 
 
 Semantic reliability + pipeline efficiency metrics are explicitly out-of-scope for v0 per ADR-001 trade-off.
 
-**Layout when filled in (currently only Bloco 1 / bootstrap shipped):**
-- `kl_score/cli.py` — Click group + `score` subcommand (skeleton; raises until Bloco 2)
-- `kl_score/parser.py` — Logseq graph parser (Bloco 2, not yet created)
-- `kl_score/metrics.py` — the 4 v0 metrics (Bloco 2, not yet created)
-- `tests/` — pytest, synthetic graph fixtures + per-metric tests + e2e (Bloco 3)
-- `reports/` — emitted markdown reports, including the Onda 2 piloto baseline (Bloco 4)
-- `docs/decisions/ADR-NNN-*.md` — local ADRs; thresholds canonicalize in ADR-001 (Bloco 5)
-
-Block sequence (1→5) is enforced by the upstream plan; respect it when picking up work.
+**Layout (Onda 3 + Onda 4 shipped):**
+- `kl_score/cli.py` — Click group + `score` subcommand
+- `kl_score/parser.py` — Logseq graph parser (pages + journals; `Page.quality_score`)
+- `kl_score/metrics.py` — the 4 v0 metrics; `enrichment_rate` v1 pondera por `quality-score::` per ADR-001 Adendo 2026-06-19
+- `tests/` — pytest, synthetic graph fixtures + per-metric tests + e2e
+- `reports/` — emitted reports (Onda 2 baseline + Onda 4 smokes)
+- `docs/decisions/ADR-001-*.md` — canonical thresholds (v0 + Onda 4 Adendo)
 
 ## Cross-repo context
 
