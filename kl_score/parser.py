@@ -52,6 +52,13 @@ class Page:
     def block_refs(self) -> set[str]:
         return {ref for b in self.blocks for ref in b.block_refs}
 
+    @property
+    def quality_score(self) -> str | None:
+        raw = self.properties.get("quality-score")
+        if raw is None:
+            return None
+        return raw.lstrip("#").strip()
+
 
 def _extract_inline(text: str) -> tuple[set[str], set[str]]:
     return (
