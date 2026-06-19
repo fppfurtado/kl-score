@@ -89,12 +89,13 @@ def _slug_logseq(entity: str) -> str:
 def gaps_detected(
     graph_root: Path, min_mention_count: int = 2
 ) -> list[str]:
-    """Entidades `[[Entity]]` mencionadas ≥ N vezes sem page correspondente.
+    """Entidades `[[Entity]]` mencionadas ≥ N vezes sem page nem journal correspondente.
 
     Slug aplicado per regra `:triple-lowbar` observada empiricamente: `/` vira
     `___`, `:` vira `%3A`, espaços/acentos preservados.
     """
     pages_dir = graph_root / "pages"
+    journals_dir = graph_root / "journals"
     mention_counts: Counter[str] = Counter()
 
     for page in _iter_all(graph_root):
@@ -106,8 +107,12 @@ def gaps_detected(
     for entity, count in sorted(mention_counts.items()):
         if count < min_mention_count:
             continue
-        if not (pages_dir / f"{_slug_logseq(entity)}.md").exists():
-            gaps.append(entity)
+        slug = _slug_logseq(entity)
+        if (pages_dir / f"{slug}.md").exists():
+            continue
+        if (journals_dir / f"{slug}.md").exists():
+            continue
+        gaps.append(entity)
 
     return gaps
 

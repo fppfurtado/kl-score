@@ -108,6 +108,27 @@ def test_gaps_detected_namespace_slug():
     assert "Foo/Bar" in gaps
 
 
+def test_gaps_detected_excludes_existing_journals(tmp_path: Path):
+    """[[2026_06_19]] mencionada 2x com journals/2026_06_19.md → NÃO retornada.
+
+    Fall-through análogo a pages: journal é entidade válida do graph. Regressão
+    descoberta por qa-reviewer em /run-plan §3.5 Bloco 3 (linha BACKLOG arquivada).
+    """
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    journals = tmp_path / "journals"
+    journals.mkdir()
+    (journals / "2026_06_19.md").write_text(
+        "- bloco do journal\n", encoding="utf-8"
+    )
+    (pages / "ref.md").write_text(
+        "- ref [[2026_06_19]]\n- de novo [[2026_06_19]]\n",
+        encoding="utf-8",
+    )
+    gaps = gaps_detected(tmp_path)
+    assert "2026_06_19" not in gaps
+
+
 def test_orphan_nodes_provenance_filter_custom(tmp_path: Path):
     """`provenance_filter='source'` retorna blocos #source não-referenciados.
 
