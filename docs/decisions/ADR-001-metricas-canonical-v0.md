@@ -140,3 +140,50 @@ ADR-001 permanece `**Status:** Proposto`. Adendo é extensão (refinamento de um
 - Schema graph-side: [`~/Notes/logseq/docs/decisions/ADR-003-knowledge-layer-schema-mecanico.md`](https://github.com/fppfurtado/logseq-notes/blob/master/docs/decisions/ADR-003-knowledge-layer-schema-mecanico.md) § Adendo 2026-06-19, commit [`65399a2`](https://github.com/fppfurtado/logseq-notes/commit/65399a2).
 - Implementação: `kl_score/parser.py` (accessor `Page.quality_score`) + `kl_score/metrics.py` (tabela `_QUALITY_WEIGHTS` + refactor de `enrichment_rate`).
 - Cobertura: `tests/test_metrics.py::test_enrichment_rate_v1_*` (9 tests cobrindo ponderação, backward-compat, fail-open, warning agregado, escopo do numerator).
+
+## Adendo 2026-06-19 — Onda 4 Faceta 2: re-calibração thresholds pós-baseline empírico
+
+**Contexto.** A Faceta 2 da Onda 4 logseq downstream materializou — 2 pilotos com `quality-score::` aplicado (knowledge-layer `#completo` via [`f55a4ff`](https://github.com/fppfurtado/logseq-notes/commit/f55a4ff); meta-bridge `#parcial` via [`859e935`](https://github.com/fppfurtado/logseq-notes/commit/859e935) em logseq-notes) + fix `gaps_detected` fall-through a `journals_dir/<slug>.md` mergeado em main do kl-score (commit `798d6bd`). § Gatilhos disparou em 3 de 4 vetores:
+
+- (1) `provenance::` block-level — **materializou organicamente via SOP da Faceta 3** ([logseq-notes ADR-003 Adendo segundo `c868b31`](https://github.com/fppfurtado/logseq-notes/commit/c868b31)): meta-bridge.md adota schema bloco-`card` com properties (incluindo `provenance:: #enriched`) como sub-bullets do `- type:: #project`; pattern distinto do schema page-property estritamente top-of-file usado em knowledge-layer (Onda 2). Schema **heterogêneo** emerge cross-pilotos sem decisão coordenada do logseq-notes ADR-003 — efeito colateral da SOP escrita-side.
+- (2) Fix `gaps_detected` para journals mergeado em main — **disparado e absorvido** (commit `798d6bd`; resultado numérico equivalente — 47 ≡ 47 — porque graph corrente não tem journal-date links ≥ 2x).
+- (3) ≥ 2 pilotos adicionais com baseline disponível — **parcialmente disparado** (N=2 de 3 esperados pelo critério "≥ 2 adicionais ao baseline original").
+- (4) Nova dimensão Onda 4+ — **não disparado**.
+
+### Baseline empírico pós-Onda 4 (2026-06-19)
+
+Comando: `kl-score score --graph ~/Notes/logseq --output reports/onda-4-recal-2026-06-19.md` (cross-graph; 185 pages escaneadas, 4678 blocos total).
+
+| Métrica | Baseline Onda 3 | Pós-Onda 4 | Threshold vigente | Decisão |
+|---|---|---|---|---|
+| `link_count` (top entity) | 13 (kl) | 13 (kl), 7 (mb) | ≥ 10 | **preservado** (N<3) |
+| `orphan_nodes` cross-graph | 0 (signal-zero) | 1 (meta-bridge sem `id::`) | n/a | **n/a preservado**; signal-positivo emergente |
+| `gaps_detected` cross-graph | 39 | 47 | ≤ 47 | **preservado** (fix journals absorvido) |
+| `enrichment_rate` cross-graph | 0.0 | 0.000214 (~1 bloco / 4678) | n/a | **n/a preservado**; signal-positivo emergente |
+
+### Análise por métrica
+
+**`link_count`** — preservado em `≥ 10`. 2 pontos de dado (13, 7) ainda abaixo do critério "≥ 2 pilotos adicionais" do § Gatilhos (lê-se: 2 ADICIONAIS ao baseline original, N=3 total). meta-bridge = 7 abaixo do threshold é honesto — page editorial mais nova, menos cross-linkada que knowledge-layer; sinal de menor densidade, não falha estrutural. Re-calibração formal aguarda 3º piloto.
+
+**`orphan_nodes`** — threshold permanece `n/a` mas **signal-positivo emerge** cross-graph (1 orphan). meta-bridge.md aparece como orphan porque adota schema block-level (per Faceta 1 + SOP Faceta 3) com `provenance:: #enriched` em sub-bullet sem `id::` materializado ainda — comportamento previsto pelo schema (signal HONESTO de page enriched sem `id::` discipline; promoção a `#completo` requer captura inbound via Logseq desktop per logseq-notes ADR-003 Adendo segundo). Threshold formal continua aguardando: (a) N≥3 pilotos block-level com baselines estabilizados; (b) discriminação entre orphan-by-design (page nova) vs orphan-by-erosion (page órfã estrutural).
+
+**`gaps_detected`** — preservado em `≤ 47`. Fix de fall-through a `journals_dir/<slug>.md` (Gatilho 2 disparou) não alterou numericamente o baseline — graph corrente não tem journal-date links ≥ 2x mention. Buffer cross-repo de 20% absorve as ADRs do meta-system. Re-baseline numericamente equivalente.
+
+**`enrichment_rate`** — threshold permanece `n/a` mas **signal-positivo emerge** (0.000214 ≈ 1 bloco enriched / 4678 total). Schema heterogêneo entre pilotos explica o número:
+
+- knowledge-layer.md mantém schema page-property top-of-file (Onda 2; `provenance:: #enriched` linha 1 do arquivo não conta como bloco no parser);
+- meta-bridge.md adota schema block-property (SOP Faceta 3; `provenance:: #enriched` em sub-bullet do `- type:: #project` conta como 1 bloco enriched).
+
+Apenas 1 bloco enriched cross-graph apesar de 2 pages com property — denominador (4678 blocos) ainda domina largamente; signal não-trivial requer extensão sistemática do schema block-level (Gatilho 1 vetor original ainda válido para retroatividade em knowledge-layer + novos pilotos).
+
+### Cross-refs absolutos
+
+- Baseline cross-graph pós-Onda 4: [`reports/onda-4-recal-2026-06-19.md`](../../reports/onda-4-recal-2026-06-19.md).
+- 1º piloto Onda 4: `~/Notes/logseq/pages/knowledge-layer.md` `quality-score:: #completo` (logseq-notes commit `f55a4ff`).
+- 2º piloto Onda 4: `~/Notes/logseq/pages/meta-bridge.md` `quality-score:: #parcial` (logseq-notes commit `859e935`).
+- SOP Faceta 3: [logseq-notes ADR-003 Adendo segundo](https://github.com/fppfurtado/logseq-notes/commit/c868b31).
+- Fix `gaps_detected` journals fall-through: commit `798d6bd` (kl-score main).
+
+### Status do ADR — preservado
+
+ADR-001 permanece `**Status:** Proposto`. Adendo segundo é re-calibração (4 thresholds revisados; 0 alterados; observação de signal emergente registrada) — não revisão maior nem substituição. Critério editorial análogo ao do Adendo primeiro 2026-06-19.
