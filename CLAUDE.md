@@ -54,6 +54,7 @@ When a design question can't be answered locally, the answer almost certainly li
 <!-- pragmatic-toolkit:config -->
 ```yaml
 paths:
+  backlog: forge
   plans_dir: local
 test_command: "uv run pytest -q --no-header"
 ```
