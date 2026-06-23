@@ -11,6 +11,8 @@ Formato canonical `## [<version>] - <date>` (Keep-a-Changelog) — ativa o probe
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-06-23
+
 ### Added
 
 - Bloco 2 do plano `meta-system/docs/plans/onda-3-knowledge-layer-scoring.md`
@@ -20,9 +22,25 @@ Formato canonical `## [<version>] - <date>` (Keep-a-Changelog) — ativa o probe
 - Bloco 3 implementa tests pytest (fixtures de graph sintético + tests per
   métrica + integration test end-to-end).
 - Bloco 4 emite baseline snapshot contra piloto Onda 2 do meta-system em
-  `reports/baseline-<date>.md`.
+  `reports/baseline-2026-06-18.md`.
 - Bloco 5 cristaliza thresholds informados pelo baseline em
   `docs/decisions/ADR-001-metricas-canonical-v0.md`.
+- Onda 4: parser estendido com `Page.quality_score` (property `quality-score::`) e
+  `enrichment_rate` v1 ponderada por grau de completude (`#rascunho` / `#parcial` /
+  `#completo`) per ADR-001 Adendo 2026-06-19.
+
+### Fixed
+
+- `gaps_detected` fall-through para `journals_dir/<slug>.md`; restrito a
+  `pages/*.md` por default.
+- Slug Logseq triple-lowbar (`___`) corrigido em `gaps_detected`.
+
+### Notes
+
+- ADR-001 Adendo segundo (Faceta 2 Onda 4): recalibração de thresholds
+  `enrichment_rate` com buffer para ruído estrutural documentado.
+- Reports smoke Onda 4 adicionados como evidência de validação.
+- `paths.backlog` declarado como `forge` no bloco config do toolkit.
 
 ## [0.1.0] - 2026-06-18
 
