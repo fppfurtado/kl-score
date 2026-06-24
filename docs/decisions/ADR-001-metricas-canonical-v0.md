@@ -309,3 +309,39 @@ ADR-001 permanece `**Status:** Proposto`. Adendo é refinamento de métrica + re
 - Baseline filtrado: [`reports/baseline-gaps-filtrado-2026-06-24.md`](../../reports/baseline-gaps-filtrado-2026-06-24.md).
 - Implementação: `kl_score/metrics.py` (`_GAP_NOISE_PATTERNS`, `gaps_detected(exclude_patterns=...)`), `kl_score/cli.py` (flag `--exclude-gap-pattern`, `filters_applied`, `JSON_SCHEMA_VERSION = "1.1"`).
 - Issue: [#9](https://github.com/fppfurtado/kl-score/issues/9).
+
+## Adendo 2026-06-24 — `--filter-namespace`: semântica por métrica (`enrichment_rate` escopa)
+
+**Contexto.** O Adendo 2026-06-24 (modo JSON) § Subset v0 inalterado registrou como comportamento "conhecido" a assimetria de `--filter-namespace`: `link_count` respeita o filtro, mas `orphan_nodes`/`gaps_detected`/`enrichment_rate` operam cross-graph. A decisão fix-or-keep ficou aberta. Este Adendo a resolve — **por métrica**, não uniformemente, porque a semântica difere.
+
+**Decisão.**
+
+| Métrica | `--filter-namespace` | Razão |
+|---|---|---|
+| `link_count` | **respeita** (já respeitava) | densidade de links por page — naturalmente escopável |
+| `enrichment_rate` | **passa a respeitar** | dimensão taxa de progresso; é razão sobre um escopo → `enriquecidos no namespace / total no namespace` = progresso *daquele* piloto. O baseline canonical é por-piloto (§ Origem); sob filtro, um valor global era defeito latente |
+| `orphan_nodes` | **permanece global** | orphanhood é inerentemente global: um bloco é orphan só se *nada em lugar nenhum* o referencia. Escopar a busca de refs marcaria como orphan blocos referenciados de fora → incorreto |
+| `gaps_detected` | **permanece global** | o check "entity page existe" considera o graph inteiro (uma page em qualquer namespace fecha o gap); escopar mudaria o significado |
+
+Resultado: o escopo por-piloto cobre as métricas que são meaningfully por-piloto (topologia de links + progresso); as métricas de topologia global (isolamento, cobertura) permanecem globais por construção.
+
+### Journals fora do escopo filtrado (deliberado)
+
+`filter_namespace` é um prefixo `pages/...`; journals (stream temporal sob `journals/`) **não pertencem a namespace `pages/` algum**. Logo `enrichment_rate(filter_namespace=...)` mede o enriquecimento das pages *daquele* namespace e exclui journals **por definição de namespace** (`iter_pages` vs `_iter_all`). `filter_namespace=None` mantém pages + journals — backward-compat byte-idêntica (os baselines/reports commitados não mudam). Decisão deliberada, não subproduto: um piloto é um namespace de pages; seu progresso é o das suas pages.
+
+### Supersessão da nota de fidelidade do Adendo JSON
+
+O Adendo 2026-06-24 (JSON) § Subset v0 inalterado afirmava: *"a assimetria pré-existente — `orphan_nodes`/`gaps_detected`/`enrichment_rate` operam cross-graph ... — é refletida fielmente no envelope; não é introduzida aqui."* **A partir deste Adendo essa nota é superada para `enrichment_rate`**: o campo passa a honrar `filter_namespace`, alinhando-se a `pages_scanned`/`filter_namespace` (já escopados no envelope). `orphan_nodes`/`gaps_detected` permanecem cross-graph — para essas duas a nota de fidelidade segue válida. **Sem bump de `schema_version`** (shape `float` estável; só a semântica do valor de `enrichment_rate` sob filtro muda — bugfix de coerência, não mudança de shape).
+
+### Limitação — namespace vazio
+
+`enrichment_rate = 0.0` sob `--filter-namespace` apontando para namespace inexistente é **indistinguível** de namespace com 0%-enriched na métrica isolada (herda o guard `total == 0 → 0.0`). Paralelo ao "signal-zero honesto" do § Benefícios. Discriminação disponível ao consumer via `pages_scanned == 0` no envelope JSON.
+
+### Status do ADR — preservado
+
+ADR-001 permanece `**Status:** Proposto`. Adendo é refinamento de uma das 4 métricas canonical sob um eixo existente (`--filter-namespace`) — extensão, não inversão nem revisão maior. Resolve o defer registrado (sessão 2026-06-24).
+
+### Cross-refs absolutos
+
+- Implementação: `kl_score/metrics.py` (`enrichment_rate(graph_root, filter_namespace=None)`), `kl_score/cli.py` (`_compute_metrics` repassa `filter_namespace`; label markdown condicional ao escopo).
+- Backlog: `--filter-namespace` usa prefixo de string (`startswith`), não fronteira de segmento — avaliação segment-vs-prefix capturada (afeta `link_count` + `enrichment_rate`).

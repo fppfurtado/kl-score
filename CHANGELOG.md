@@ -39,6 +39,11 @@ Formato canonical `## [<version>] - <date>` (Keep-a-Changelog) — ativa o probe
   manter reabsorveria débito de curadoria real). Quebra de série: baselines
   39/47/71 são pré-filtro, não comparáveis com pós-filtro. Baseline em
   `reports/baseline-gaps-filtrado-2026-06-24.md`.
+- `enrichment_rate` passa a respeitar `--filter-namespace` (progresso *daquele*
+  namespace de pages; journals fora por definição); `orphan_nodes`/`gaps_detected`
+  permanecem globais por construção. Backward-compat: sem filtro, valor
+  inalterado. Sem bump de `schema_version` (shape estável). Decisão semântica por
+  métrica em `docs/decisions/ADR-001` § Adendo --filter-namespace.
 
 ## [0.2.0] - 2026-06-23
 

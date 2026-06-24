@@ -453,3 +453,124 @@ def test_enrichment_rate_v1_three_weights_combined(tmp_path: Path):
         )
     # 3 blocos enriched, pesos 1.0 + 0.5 + 0.25 = 1.75; total = 3; rate = 1.75/3
     assert enrichment_rate(tmp_path) == pytest.approx(1.75 / 3, abs=1e-9)
+
+
+def _write_scoped_graph(root: Path) -> None:
+    """alpha (2 enriched), beta (2 sem), journal (1 de 2 enriched)."""
+    pages = root / "pages"
+    pages.mkdir()
+    journals = root / "journals"
+    journals.mkdir()
+    (pages / "alpha.md").write_text(
+        "- a1\n  provenance:: #enriched\n- a2\n  provenance:: #enriched\n",
+        encoding="utf-8",
+    )
+    (pages / "beta.md").write_text(
+        "- b1 sem provenance\n- b2 sem provenance\n", encoding="utf-8"
+    )
+    (journals / "2026_06_19.md").write_text(
+        "- j1\n  provenance:: #enriched\n- j2 sem provenance\n", encoding="utf-8"
+    )
+
+
+def test_enrichment_rate_scopes_to_namespace(tmp_path: Path):
+    """--filter-namespace escopa enrichment_rate ao namespace de pages.
+
+    global = 3 enriched / 6 total (alpha 2 + beta 0 + journal 1) = 0.5;
+    alpha = 2/2 = 1.0; beta = 0/2 = 0.0 — três valores distintos.
+    """
+    _write_scoped_graph(tmp_path)
+    assert enrichment_rate(tmp_path) == pytest.approx(0.5)
+    assert enrichment_rate(tmp_path, filter_namespace="pages/alpha") == pytest.approx(1.0)
+    assert enrichment_rate(tmp_path, filter_namespace="pages/beta") == pytest.approx(0.0)
+
+
+def test_enrichment_rate_filter_excludes_journals(tmp_path: Path):
+    """Sob filtro, journals ficam fora (não pertencem a namespace pages/).
+
+    Graph com enriched SÓ em journal: global conta (None → _iter_all); filtrado
+    a uma page namespace não conta (iter_pages exclui journals).
+    """
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    journals = tmp_path / "journals"
+    journals.mkdir()
+    (pages / "alpha.md").write_text(
+        "- a1 sem provenance\n- a2 sem provenance\n", encoding="utf-8"
+    )
+    (journals / "2026_06_19.md").write_text(
+        "- j1\n  provenance:: #enriched\n- j2\n  provenance:: #enriched\n",
+        encoding="utf-8",
+    )
+    # global (None): journal conta → 2/4 = 0.5 (backward-compat: _iter_all)
+    assert enrichment_rate(tmp_path) == pytest.approx(0.5)
+    # filtrado: journal excluído → 0/2 = 0.0
+    assert enrichment_rate(tmp_path, filter_namespace="pages/alpha") == pytest.approx(0.0)
+
+
+def test_enrichment_rate_empty_namespace(tmp_path: Path):
+    """Namespace inexistente → 0.0 (zero blocos no escopo).
+
+    Indistinguível de 0%-enriched na métrica isolada; pages_scanned==0 no
+    envelope discrimina (ver ADR-001 § Adendo --filter-namespace).
+    """
+    _write_scoped_graph(tmp_path)
+    assert enrichment_rate(tmp_path, filter_namespace="pages/inexistente") == 0.0
+
+
+def test_enrichment_rate_none_equiv_default_call(tmp_path: Path):
+    """`filter_namespace=None` explícito == chamada sem-arg (backward-compat exata).
+
+    Trava a redução `None → _iter_all` por igualdade, não por contraste — um
+    refactor que mude o ramo None (ex.: default "") é flagrado.
+    """
+    _write_scoped_graph(tmp_path)
+    assert (
+        enrichment_rate(tmp_path)
+        == enrichment_rate(tmp_path, filter_namespace=None)
+        == pytest.approx(0.5)
+    )
+
+
+def test_enrichment_rate_namespace_is_string_prefix(tmp_path: Path):
+    """--filter-namespace casa por prefixo de string (semântica de `iter_pages`),
+    não por fronteira de segmento: `pages/alpha` casa `pages/alpha-extra.md`.
+
+    Characterization test — trava a consistência com `iter_pages`/`link_count`.
+    A questão segment-vs-prefix é fora-de-escopo (afeta toda a feature
+    --filter-namespace, não só enrichment_rate); capturada no backlog.
+    """
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (tmp_path / "journals").mkdir()
+    (pages / "alpha.md").write_text(
+        "- a1\n  provenance:: #enriched\n", encoding="utf-8"
+    )
+    (pages / "alpha-extra.md").write_text(
+        "- x1 sem provenance\n- x2 sem provenance\n", encoding="utf-8"
+    )
+    # prefixo casa alpha.md (1 enriched) + alpha-extra.md (2 sem) → 1/3
+    assert enrichment_rate(tmp_path, filter_namespace="pages/alpha") == pytest.approx(1 / 3)
+
+
+def test_enrichment_rate_filter_applies_quality_weight(tmp_path: Path, recwarn):
+    """Ponderação quality-score aplica dentro do escopo; warning não vaza pages de fora."""
+    alpha = tmp_path / "pages" / "alpha"
+    alpha.mkdir(parents=True)
+    (tmp_path / "journals").mkdir()
+    (alpha / "completo.md").write_text(
+        "quality-score:: #completo\n\n- c1\n  provenance:: #enriched\n",
+        encoding="utf-8",
+    )
+    (alpha / "parcial.md").write_text(
+        "quality-score:: #parcial\n\n- p1\n  provenance:: #enriched\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "pages" / "fora.md").write_text(
+        "quality-score:: #invalido\n\n- f1\n  provenance:: #enriched\n",
+        encoding="utf-8",
+    )
+    # escopo alpha: (1.0 + 0.5) / 2 = 0.75; page #invalido de fora fica fora
+    assert enrichment_rate(tmp_path, filter_namespace="pages/alpha") == pytest.approx(0.75)
+    # warning de quality-score não-canonical não dispara para page fora do escopo
+    assert not recwarn.list
