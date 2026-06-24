@@ -134,7 +134,9 @@ def gaps_detected(
     return gaps
 
 
-def enrichment_rate(graph_root: Path) -> float:
+def enrichment_rate(
+    graph_root: Path, filter_namespace: str | None = None
+) -> float:
     """Blocos `provenance:: #enriched` ponderados por `quality-score::` da page-pai / total. Range [0.0, 1.0].
 
     Pesos: `#completo`=1.0, `#parcial`=0.5, `#rascunho`=0.25. Page sem
@@ -145,11 +147,20 @@ def enrichment_rate(graph_root: Path) -> float:
     Benefícios sem quebrar runs em schema sujo.
 
     Dimensão taxa de progresso. Zero blocos → 0.0.
+
+    `filter_namespace=None` → escopo cross-graph (pages + journals via
+    `_iter_all`), backward-compat. Set → progresso *daquele* namespace de pages
+    (`iter_pages(filter_namespace)`); journals ficam fora por definição — não
+    pertencem a namespace `pages/` algum (ver ADR-001 § Adendo --filter-namespace).
     """
+    if filter_namespace is None:
+        pages_iter = _iter_all(graph_root)
+    else:
+        pages_iter = iter_pages(graph_root, filter_namespace=filter_namespace)
     total = 0
     weighted_enriched = 0.0
     unknown_quality_pages: list[Path] = []
-    for page in _iter_all(graph_root):
+    for page in pages_iter:
         score = page.quality_score
         if score is None:
             weight = 1.0

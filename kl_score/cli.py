@@ -50,7 +50,7 @@ def _compute_metrics(
             graph_path, exclude_patterns=list(exclude_gap_patterns)
         ),
         "gap_filters_applied": [*_GAP_NOISE_PATTERNS, *exclude_gap_patterns],
-        "rate": enrichment_rate(graph_path),
+        "rate": enrichment_rate(graph_path, filter_namespace=filter_namespace),
     }
 
 
@@ -139,8 +139,11 @@ def _render_markdown(
         out.append("")
 
     out.append("### enrichment_rate\n")
+    rate_scope = (
+        f"namespace `{filter_namespace}`" if filter_namespace else "cross-graph"
+    )
     out.append(
-        f"Blocos com `provenance:: #enriched` / total (cross-graph): "
+        f"Blocos com `provenance:: #enriched` / total ({rate_scope}): "
         f"**{m['rate']:.4f}** ({m['rate'] * 100:.2f}%)\n"
     )
     return "\n".join(out)
