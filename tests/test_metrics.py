@@ -129,6 +129,65 @@ def test_gaps_detected_excludes_existing_journals(tmp_path: Path):
     assert "2026_06_19" not in gaps
 
 
+def _write_gap_graph(root: Path, entities: list[str]) -> None:
+    """Graph mínimo: cada entidade mencionada 2x via [[..]], sem page própria."""
+    pages = root / "pages"
+    pages.mkdir()
+    (root / "journals").mkdir()
+    body = "\n".join(f"- ref [[{e}]]\n- de novo [[{e}]]" for e in entities)
+    (pages / "ref.md").write_text(body + "\n", encoding="utf-8")
+
+
+def test_gaps_detected_filters_structural_noise(tmp_path: Path):
+    """Ruído estrutural (ADR-NNN, #NN) sempre filtrado; conceito real preservado."""
+    _write_gap_graph(tmp_path, ["ADR-001", "#19", "real-concept"])
+    gaps = gaps_detected(tmp_path)
+    assert "ADR-001" not in gaps
+    assert "#19" not in gaps
+    assert "real-concept" in gaps
+
+
+def test_gaps_detected_exclude_patterns_configurable(tmp_path: Path):
+    """exclude_patterns (caller) estende o filtro; default não filtra namespace externo."""
+    _write_gap_graph(tmp_path, ["Request TJPA-13", "real-concept"])
+    # default: TJPA não é ruído estrutural → entra como gap
+    assert "Request TJPA-13" in gaps_detected(tmp_path)
+    # com exclude_patterns (substring): filtrado, conceito real mantido
+    filtered = gaps_detected(tmp_path, exclude_patterns=[r"TJPA"])
+    assert "Request TJPA-13" not in filtered
+    assert "real-concept" in filtered
+
+
+def test_gaps_detected_structural_filter_is_anchored_not_substring(tmp_path: Path):
+    """Built-in é ancorado: entidades que só CONTÊM ADR-NNN/#NN não são filtradas.
+
+    Trava a decisão 'ancorado' — refactor que troque ^ADR-\\d+$ por substring
+    comeria conceitos reais (pior modo de falha do contrato).
+    """
+    _write_gap_graph(tmp_path, ["ADR-001", "ADR-001-knowledge", "#19-retro"])
+    gaps = gaps_detected(tmp_path)
+    assert "ADR-001" not in gaps  # exato → filtrado
+    assert "ADR-001-knowledge" in gaps  # contém mas não-exato → preservado
+    assert "#19-retro" in gaps  # contém mas não-exato → preservado
+
+
+def test_gaps_detected_empty_exclude_patterns_equiv_default(tmp_path: Path):
+    """exclude_patterns=[] (caso real do CLI multiple=True) idêntico ao default."""
+    _write_gap_graph(tmp_path, ["ADR-001", "real-concept"])
+    assert gaps_detected(tmp_path, exclude_patterns=[]) == gaps_detected(tmp_path)
+
+
+def test_gaps_detected_exclude_pattern_substring_is_greedy_by_design(tmp_path: Path):
+    """Caller pattern é substring não-ancorado: 'ADR' filtra 'Padrão ADR de Workflow'.
+
+    Documenta o trade-off (warning do help da flag) como comportamento intencional.
+    """
+    _write_gap_graph(tmp_path, ["Padrão ADR de Workflow", "real-concept"])
+    filtered = gaps_detected(tmp_path, exclude_patterns=["ADR"])
+    assert "Padrão ADR de Workflow" not in filtered
+    assert "real-concept" in filtered
+
+
 def test_orphan_nodes_provenance_filter_custom(tmp_path: Path):
     """`provenance_filter='source'` retorna blocos #source não-referenciados.
 

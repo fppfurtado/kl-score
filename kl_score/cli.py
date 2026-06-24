@@ -9,6 +9,7 @@ Graph é read-only em todos os caminhos.
 from __future__ import annotations
 
 import json
+import re
 from datetime import date
 from pathlib import Path
 
@@ -199,6 +200,13 @@ def score(
     exclude_gap_patterns: tuple[str, ...],
 ) -> None:
     """Computa 4 métricas v0 e emite report markdown ou JSON estável."""
+    for pat in exclude_gap_patterns:
+        try:
+            re.compile(pat)
+        except re.error as exc:
+            raise click.ClickException(
+                f"--exclude-gap-pattern regex inválido {pat!r}: {exc}"
+            )
     m = _compute_metrics(graph_path, filter_namespace, exclude_gap_patterns)
 
     if output_format == "json":
