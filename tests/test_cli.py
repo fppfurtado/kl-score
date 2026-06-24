@@ -274,3 +274,15 @@ def test_filters_applied_patterns_are_effective(tmp_path: Path):
         assert not any(re.search(pat, item) for item in gaps["items"])
     # conceito real preservado
     assert "real-concept" in gaps["items"]
+
+
+def test_score_json_filter_namespace_scopes_only_enrichment():
+    """--filter-namespace escopa enrichment_rate; orphan/gaps seguem globais."""
+    glob = _run_json()["metrics"]
+    scoped = _run_json("--filter-namespace", "pages/knowledge-layer")["metrics"]
+    # enrichment_rate escopa — valores ancorados (não só desigualdade)
+    assert glob["enrichment_rate"] == pytest.approx(0.3077, abs=1e-4)
+    assert scoped["enrichment_rate"] == pytest.approx(0.0)
+    # orphan_nodes / gaps_detected são globais — inalterados pelo filtro
+    assert glob["orphan_nodes"]["count"] == scoped["orphan_nodes"]["count"]
+    assert glob["gaps_detected"]["count"] == scoped["gaps_detected"]["count"]
