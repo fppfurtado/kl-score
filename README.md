@@ -40,9 +40,14 @@ kl-score score --graph ~/Notes/logseq --format json | jq '.metrics.gaps_detected
 
 # JSON em arquivo
 kl-score score --graph ~/Notes/logseq --format json --output reports/metrics.json
+
+# excluir namespace externo de gaps_detected (ruído ADR-NNN/#NN já filtrado por default)
+kl-score score --graph ~/Notes/logseq --format json --exclude-gap-pattern 'TJPA'
 ```
 
-Output: por default (`--format markdown`) um report markdown standalone com seção `## Métricas v0` + 4 sub-seções por métrica + valores numéricos + listas quando relevante; `--output` é obrigatório nesse modo. Com `--format json`, um envelope estável (`schema_version 1.0`) com as 4 métricas + listas estruturadas — emitido para **stdout** quando `--output` é omitido (interface programática consumida pelo `/wiki-lint`, meta-bridge #19; contrato em [ADR-001 § Adendo 2026-06-24](docs/decisions/ADR-001-metricas-canonical-v0.md)). Graph permanece **read-only** — kl-score nunca muta o graph. Property `quality-score::` é **lida** pelo parser desde a Onda 4 (page-level, curada manualmente pelo operador no Logseq desktop; ver [ADR-001 § Adendo 2026-06-19](docs/decisions/ADR-001-metricas-canonical-v0.md)); kl-score nunca **injeta** o property (decisão preservada per `meta-system` plano Onda 3 pré-tomada 4).
+`gaps_detected` filtra **ruído estrutural por default** — entidades casando `^ADR-\d+$` (ADRs cross-repo) ou `^#\d+$` (refs numéricas) não são contadas como gaps. A flag `--exclude-gap-pattern <regex>` (repetível) estende o filtro para namespaces externos ad-hoc; **atenção:** o padrão do caller é **substring não-ancorado** (`'ADR'` casaria `Padrão ADR de Workflow`) — ancore (`^...$`) se quiser exatidão. Os patterns efetivos aparecem em `gaps_detected.filters_applied` no envelope JSON. Ver [ADR-001 § Adendo 2026-06-24 (filtro)](docs/decisions/ADR-001-metricas-canonical-v0.md).
+
+Output: por default (`--format markdown`) um report markdown standalone com seção `## Métricas v0` + 4 sub-seções por métrica + valores numéricos + listas quando relevante; `--output` é obrigatório nesse modo. Com `--format json`, um envelope estável (`schema_version 1.1`) com as 4 métricas + listas estruturadas — emitido para **stdout** quando `--output` é omitido (interface programática consumida pelo `/wiki-lint`, meta-bridge #19; contrato em [ADR-001 § Adendo 2026-06-24](docs/decisions/ADR-001-metricas-canonical-v0.md)). Graph permanece **read-only** — kl-score nunca muta o graph. Property `quality-score::` é **lida** pelo parser desde a Onda 4 (page-level, curada manualmente pelo operador no Logseq desktop; ver [ADR-001 § Adendo 2026-06-19](docs/decisions/ADR-001-metricas-canonical-v0.md)); kl-score nunca **injeta** o property (decisão preservada per `meta-system` plano Onda 3 pré-tomada 4).
 
 ## Dev
 

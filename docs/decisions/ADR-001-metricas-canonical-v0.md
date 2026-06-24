@@ -213,7 +213,7 @@ ADR-001 permanece `**Status:** Proposto`. Adendo segundo é re-calibração (4 t
 
 **Estabilidade do contrato (lido literalmente pelo `/wiki-lint`):**
 
-- `schema_version` é o ponto de versionamento; breaking change no shape incrementa o campo e dispara revisão do consumer.
+- `schema_version` é o ponto de versionamento; breaking change no shape incrementa o campo e dispara revisão do consumer. **Atualizado para `"1.1"` no Adendo 2026-06-24 (filtro de ruído)**: campo aditivo `gaps_detected.filters_applied: [<regex>]` lista os patterns aplicados; `gaps_detected.items` agora vem pós-filtro estrutural default-on.
 - `orphan_nodes.items[]` são objetos estruturados (`page`/`uuid`/`excerpt`), **não** `str(BlockRef)` — `__str__` é formatação humana truncada a 60 chars, instável como contrato. `page` é POSIX relativo ao **graph root** (orphan pode vir de `journals/`, não só `pages/`); `uuid` é `str | null` (orphan sem `id::` serializa `null` explícito — o consumidor deve tolerar `null`, não chave-ausente); `excerpt` é o `body_excerpt` do bloco.
 - `gaps_detected.items` são nomes de entidade em forma de **exibição** (`Foo/Bar`), não slug Logseq (`Foo___Bar`) — o slug é detalhe interno do lookup de existência.
 - `link_count.per_page` é **integral** (todas as pages do escopo); o truncamento top-20 é exclusivo da renderização markdown (formatação humana).
@@ -270,3 +270,42 @@ Decisão híbrida (per /triage 2026-06-24): re-baseline o threshold para ≤ 85 
 ### Status do ADR — preservado
 
 ADR-001 permanece `**Status:** Proposto`. Adendo é re-calibração (1 threshold revisado: `gaps_detected` 47→85; 3 preservados; emergência de signal block-level documentada) — não revisão maior nem substituição. Critério editorial análogo aos Adendos prévios.
+
+## Adendo 2026-06-24 — Filtro de ruído estrutural em `gaps_detected` + re-aperto `≤ 85` → `≤ 44` (issue #9)
+
+**Contexto.** O Adendo terceiro (acima) subiu o threshold de `gaps_detected` para `≤ 85` como **paliativo**, deferindo explicitamente o refinamento da métrica à issue [#9](https://github.com/fppfurtado/kl-score/issues/9). Este Adendo fecha esse loop. O `≤ 85` absorvia ruído estrutural no buffer (risco Goodhart): dos 71 gaps do baseline 2026-06-24, **27 eram ruído estrutural** (21 ADR-NNN cross-repo + 6 refs numéricas `#NN`), inflando a métrica sem medir débito de curadoria real.
+
+**Decisão.** Filtrar ruído estrutural de `gaps_detected` e re-apertar o threshold a partir do baseline filtrado, **sem buffer**.
+
+### Filtro
+
+- **Estrutural default-on** (`_GAP_NOISE_PATTERNS` em `metrics.py`): entidades casando `^ADR-\d+$` ou `^#\d+$` (regex ancorados — alta precisão; `ADR-001-knowledge`/`#19-retro` **não** são filtrados) são sempre descartadas antes dos checks de existência.
+- **Configurável opt-in** (flag CLI `--exclude-gap-pattern <regex>`, repetível): regex substring não-ancorado para namespaces externos ad-hoc (ex.: `--exclude-gap-pattern TJPA` remove `Processo Judicial.../Request TJPA-NN`). Não hardcoda domínios alheios.
+
+### Re-aperto do threshold — sem buffer
+
+Baseline filtrado (estrutural-only, default): `kl-score score --graph ~/Notes/logseq --output reports/baseline-gaps-filtrado-2026-06-24.md` → **`gaps_detected` = 44** (200 pages; 0 ruído ADR/#NN sobrevivente).
+
+| Threshold | Antes (Adendo terceiro) | Agora |
+|---|---|---|
+| `gaps_detected` | `≤ 85` (71 × 1.2, paliativo) | **`≤ 44`** (= baseline filtrado, **sem buffer**) |
+
+**Buffer dropado:** o fator ×1.2 existia "porque o baseline contém ruído cross-repo documentado" (§ Decisão original). Filtrado o ruído estruturalmente, o buffer perde a razão de ser; mantê-lo reabsorveria os ~40 conceitos reais sem page (`CoT`, `Few-Shot`, `Logseq`, `Mandamus`...) como "normal" — exatamente o débito de curadoria que a métrica deve pressionar a fechar. `≤ baseline_filtrado` realinha com a prescrição original do plano upstream §5 ("sem drift") da qual o buffer divergira intencionalmente. Resíduo cross-repo TJPA (~4) é excluível via `--exclude-gap-pattern` para threshold local mais apertado.
+
+### Quebra de série histórica
+
+Os baselines `gaps_detected` 39 / 47 / 71 (Decisão original + Adendos Faceta 2 e terceiro) são **pré-filtro**. A partir deste Adendo (2026-06-24) `gaps_detected` é medido **pós-filtro estrutural** — as séries **não são diretamente comparáveis**. O drop 71→44 é mudança de *definição* da métrica (filtro de ruído), não melhora de curadoria.
+
+### Impacto no contrato JSON cross-repo
+
+`gaps_detected.items` faz parte do contrato consumido pelo `/wiki-lint` (meta-bridge #19, ainda não construído). O filtro muda o conjunto de items. Sinalizado explicitamente: `schema_version` sobe `1.0 → 1.1` (bump aditivo) com campo novo `gaps_detected.filters_applied: [<regex efetivos>]` — o consumer vê quais patterns foram aplicados. Shape das métricas existentes inalterado (consumer 1.0 segue lendo `items`). Ver § Adendo modo `--format json` (atualizado para 1.1).
+
+### Status do ADR — preservado
+
+ADR-001 permanece `**Status:** Proposto`. Adendo é refinamento de métrica + re-calibração (1 threshold revisado: `gaps_detected` 85→44; filtro de definição adicionado; quebra de série registrada) — não revisão maior. Critério editorial análogo aos Adendos prévios.
+
+### Cross-refs absolutos
+
+- Baseline filtrado: [`reports/baseline-gaps-filtrado-2026-06-24.md`](../../reports/baseline-gaps-filtrado-2026-06-24.md).
+- Implementação: `kl_score/metrics.py` (`_GAP_NOISE_PATTERNS`, `gaps_detected(exclude_patterns=...)`), `kl_score/cli.py` (flag `--exclude-gap-pattern`, `filters_applied`, `JSON_SCHEMA_VERSION = "1.1"`).
+- Issue: [#9](https://github.com/fppfurtado/kl-score/issues/9).

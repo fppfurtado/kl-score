@@ -20,6 +20,11 @@ Formato canonical `## [<version>] - <date>` (Keep-a-Changelog) — ativa o probe
   `json` sem `--output` emite para stdout (`| jq`); `markdown` sem `--output`
   falha loud. Contrato cross-repo consumido pelo `/wiki-lint`
   (meta-bridge #19); ver `docs/decisions/ADR-001` § Adendo 2026-06-24.
+- Filtro de ruído estrutural em `gaps_detected` (#9): entidades casando
+  `^ADR-\d+$` (ADRs cross-repo) ou `^#\d+$` (refs numéricas) são filtradas por
+  default; flag `--exclude-gap-pattern <regex>` (repetível, substring) estende
+  o filtro para namespaces externos. Envelope JSON sobe para
+  `schema_version 1.1` com campo aditivo `gaps_detected.filters_applied`.
 
 ### Notes
 
@@ -29,6 +34,11 @@ Formato canonical `## [<version>] - <date>` (Keep-a-Changelog) — ativa o probe
   mantidos `n/a` (signal block-level emergente, sem contraste discriminante).
   Refinamento de ruído de `gaps_detected` rastreado em #9. Baseline em
   `reports/baseline-2026-06-24.md`.
+- ADR-001 Adendo quarto (2026-06-24): re-aperto `gaps_detected` `≤ 85` → `≤ 44`
+  (baseline filtrado, **sem buffer** — o ×1.2 absorvia ruído agora filtrado;
+  manter reabsorveria débito de curadoria real). Quebra de série: baselines
+  39/47/71 são pré-filtro, não comparáveis com pós-filtro. Baseline em
+  `reports/baseline-gaps-filtrado-2026-06-24.md`.
 
 ## [0.2.0] - 2026-06-23
 
