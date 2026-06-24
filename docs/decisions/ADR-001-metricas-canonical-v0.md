@@ -233,3 +233,40 @@ ADR-001 permanece `**Status:** Proposto`. Adendo terceiro ativa uma alternativa 
 - Consumidor: [meta-bridge #19](https://github.com/fppfurtado/meta-bridge/issues/19) (`/wiki-lint`, Camada 4). Issue kl-score: [#7](https://github.com/fppfurtado/kl-score/issues/7).
 - Implementação: `kl_score/cli.py` (`_compute_metrics` compartilhado, `_build_json_payload`, opção `--format`).
 - Cobertura: `tests/test_cli.py::test_score_json_*` (10 tests cobrindo envelope, nullability de `uuid`, valores ancorados, per_page integral, namespace vazio, determinismo, fail-loud).
+
+## Adendo 2026-06-24 — Re-calibração de thresholds pós-adoção block-level (`gaps_detected` 47→85)
+
+**Contexto.** § Gatilhos disparou empiricamente: baseline fresco cross-graph ([`reports/baseline-2026-06-24.md`](../../reports/baseline-2026-06-24.md), 200 pages) divergiu fortemente do baseline do Adendo Faceta 2 (2026-06-19, 185 pages). A adoção block-level de `provenance:: #enriched` no graph se ampliou desde a Faceta 2 — vetor `provenance::` block-level que § Gatilhos preservava como recalibração futura, agora materializado em volume. Origem da detecção: `.claude/local/NOTES.md` entry 2026-06-24 (drift surfado na validação manual do modo `--format json`).
+
+### Baseline empírico (2026-06-24)
+
+Comando: `kl-score score --graph ~/Notes/logseq --output reports/baseline-2026-06-24.md` (cross-graph; 200 pages).
+
+| Métrica | Baseline Faceta 2 (2026-06-19) | Pós-drift (2026-06-24) | Threshold vigente | Decisão |
+|---|---|---|---|---|
+| `link_count` (top entities) | 13 (kl), 7 (mb) | 24, 15, 15, 13, 11 | ≥ 10 | **preservado ≥ 10**; N≥3 agora disponível confirma o floor |
+| `orphan_nodes` cross-graph | 1 | 26 (todos sem `id::`) | n/a | **n/a preservado**; população 100% by-design, sem contraste by-erosion |
+| `gaps_detected` cross-graph | 47 | 71 | ≤ 47 | **re-baseline ≤ 85** (71×1.2) + refinamento da métrica deferido (issue #9) |
+| `enrichment_rate` cross-graph | 0.000214 | 0.004495 | n/a | **n/a preservado**; denominador (~4700 blocos) ainda domina |
+
+### Análise por métrica
+
+**`link_count`** — preservado em ≥ 10. Pós-drift há ≥5 entity pages acima do floor (24/15/15/13/11), satisfazendo o critério "≥ 2 pilotos adicionais" do § Gatilhos (N≥3 total). O floor ≥ 10 (originalmente knowledge-layer 13 × 0.8, heurística N=1) agora tem suporte empírico multi-page — pages bem-linkadas clearam confortavelmente; pages abaixo de 10 são honestamente sub-linkadas. Fator 0.8 mantido; confiança elevada de heurística N=1 para floor empiricamente suportado.
+
+**`orphan_nodes`** — threshold permanece `n/a`. Os 26 orphans cross-graph são **todos** `sem id::` (by-design: blocos enriquecidos sem disciplina de `id::` materializada — signal honesto de page enriched sem inbound-ref, per Adendo Faceta 2). Zero orphans com `id::` órfãos (que seriam o caso by-erosion). A discriminação by-design vs by-erosion que § Gatilhos exige pra ativar o threshold **não tem contraste nos dados** (população 100% by-design). Threshold formal continua aguardando: (a) materialização de `id::` discipline em pages enriched (produz baseline by-design estável); (b) emergência de ≥1 caso by-erosion (page com `id::` que perde refs inbound) pra calibrar o limite discriminante.
+
+**`gaps_detected`** — **re-baseline de ≤ 47 para ≤ 85** (71 × 1.2, mesma fórmula baseline × 1.2 + buffer cross-repo da Decisão original). A composição dos 71 mudou qualitativamente vs o baseline original (39, "majoritariamente ADRs do meta-system"): o ruído ADR-cross-repo **caiu** para 21; os ~50 restantes são mistura de refs numéricas (`#8`, `#19`, `#139`), entidades de outros repos (`Processo Judicial.../Request TJPA-13`), e **conceitos reais da knowledge layer sem entity page** (`CoT`, `Few-Shot`, `Logseq`, `Mandamus`, `Pessoa`, `Agentic Programming`...). O salto 47→71 vem majoritariamente de menções a conceitos reais — gaps legítimos de curadoria, não mais ruído.
+
+Decisão híbrida (per /triage 2026-06-24): re-baseline o threshold para ≤ 85 **agora** (preserva a metodologia documentada; não bloqueia runs) E **refinar a métrica** depois (issue [#9](https://github.com/fppfurtado/kl-score/issues/9)) — filtrar ruído estrutural (`#NN` refs, ADRs cross-repo, entidades de outros repos) de `gaps_detected` pra que o threshold meça débito de curadoria real, re-apertando quando a métrica estiver limpa. Reconhece a tensão Goodhart explicitamente: re-baseline puro absorveria gaps reais no ruído; o refinamento diferido é o caminho pra restaurar poder discriminante.
+
+**`enrichment_rate`** — threshold permanece `n/a`. 0.004495 (~21 blocos enriched / ~4700 total) é signal-positivo crescente (~21× vs Faceta 2) mas ainda dominado pelo denominador. Threshold com poder discriminante requer extensão sistemática do schema block-level (Gatilho 1 ainda válido pra retroatividade + novos pilotos).
+
+### Cross-refs absolutos
+
+- Baseline cross-graph pós-drift: [`reports/baseline-2026-06-24.md`](../../reports/baseline-2026-06-24.md).
+- Origem do drift (captura sessional): `.claude/local/NOTES.md` entry 2026-06-24.
+- Refinamento `gaps_detected` (filtro de ruído + re-aperto): issue [#9](https://github.com/fppfurtado/kl-score/issues/9).
+
+### Status do ADR — preservado
+
+ADR-001 permanece `**Status:** Proposto`. Adendo é re-calibração (1 threshold revisado: `gaps_detected` 47→85; 3 preservados; emergência de signal block-level documentada) — não revisão maior nem substituição. Critério editorial análogo aos Adendos prévios.

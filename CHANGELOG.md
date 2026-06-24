@@ -21,6 +21,15 @@ Formato canonical `## [<version>] - <date>` (Keep-a-Changelog) — ativa o probe
   falha loud. Contrato cross-repo consumido pelo `/wiki-lint`
   (meta-bridge #19); ver `docs/decisions/ADR-001` § Adendo 2026-06-24.
 
+### Notes
+
+- ADR-001 Adendo terceiro (2026-06-24): re-calibração de thresholds pós-drift
+  block-level. `gaps_detected` re-baseline `≤ 47` → `≤ 85`; `link_count`
+  preservado `≥ 10` (N≥3 confirma o floor); `orphan_nodes`/`enrichment_rate`
+  mantidos `n/a` (signal block-level emergente, sem contraste discriminante).
+  Refinamento de ruído de `gaps_detected` rastreado em #9. Baseline em
+  `reports/baseline-2026-06-24.md`.
+
 ## [0.2.0] - 2026-06-23
 
 ### Added
