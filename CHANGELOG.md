@@ -11,6 +11,16 @@ Formato canonical `## [<version>] - <date>` (Keep-a-Changelog) — ativa o probe
 
 ## [Unreleased]
 
+### Added
+
+- Modo `--format json|markdown` (default `markdown`) no comando `score`:
+  emite envelope JSON estável (`schema_version 1.0`) com as 4 métricas v0 +
+  as listas estruturadas (`orphan_nodes` como objeto `page`/`uuid`/`excerpt`,
+  `gaps_detected`, `per_page` integral). `--output` passa a opcional — modo
+  `json` sem `--output` emite para stdout (`| jq`); `markdown` sem `--output`
+  falha loud. Contrato cross-repo consumido pelo `/wiki-lint`
+  (meta-bridge #19); ver `docs/decisions/ADR-001` § Adendo 2026-06-24.
+
 ## [0.2.0] - 2026-06-23
 
 ### Added
