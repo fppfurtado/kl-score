@@ -8,12 +8,18 @@ progresso (enrichment_rate). Decisões substantivas em
 
 from __future__ import annotations
 
+import re
 import warnings
 from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
 from kl_score.parser import Page, iter_journals, iter_pages, parse_page
+
+# Ruído estrutural sempre filtrado de gaps_detected: ADRs cross-repo
+# (ADR-NNN) e refs numéricas (#NN) não são entidades da knowledge layer.
+# Padrões ancorados (^...$); caller estende via exclude_patterns (substring).
+_GAP_NOISE_PATTERNS: tuple[str, ...] = (r"^ADR-\d+$", r"^#\d+$")
 
 _QUALITY_WEIGHTS: dict[str, float] = {
     "completo": 1.0,
@@ -87,15 +93,24 @@ def _slug_logseq(entity: str) -> str:
 
 
 def gaps_detected(
-    graph_root: Path, min_mention_count: int = 2
+    graph_root: Path,
+    min_mention_count: int = 2,
+    exclude_patterns: list[str] | None = None,
 ) -> list[str]:
     """Entidades `[[Entity]]` mencionadas ≥ N vezes sem page nem journal correspondente.
+
+    Ruído estrutural (`_GAP_NOISE_PATTERNS`: ADR-NNN, #NN) é sempre descartado;
+    `exclude_patterns` (regex substring, não-ancorados) estende o filtro para
+    namespaces externos ad-hoc. Filtro precede os checks de existência.
 
     Slug aplicado per regra `:triple-lowbar` observada empiricamente: `/` vira
     `___`, `:` vira `%3A`, espaços/acentos preservados.
     """
     pages_dir = graph_root / "pages"
     journals_dir = graph_root / "journals"
+    noise = [
+        re.compile(p) for p in (*_GAP_NOISE_PATTERNS, *(exclude_patterns or []))
+    ]
     mention_counts: Counter[str] = Counter()
 
     for page in _iter_all(graph_root):
@@ -106,6 +121,8 @@ def gaps_detected(
     gaps: list[str] = []
     for entity, count in sorted(mention_counts.items()):
         if count < min_mention_count:
+            continue
+        if any(pat.search(entity) for pat in noise):
             continue
         slug = _slug_logseq(entity)
         if (pages_dir / f"{slug}.md").exists():

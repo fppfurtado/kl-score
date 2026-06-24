@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -78,7 +79,7 @@ def _run_json(*extra: str) -> dict:
 def test_score_json_stdout_is_valid_envelope():
     """`score --format json` sem --output emite envelope JSON válido em stdout."""
     payload = _run_json()
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "1.1"
     assert payload["graph"] == str(FIXTURE)
     assert payload["filter_namespace"] is None
     assert isinstance(payload["pages_scanned"], int)
@@ -203,7 +204,7 @@ def test_score_json_to_file_writes_envelope(tmp_path: Path):
     )
     assert result.exit_code == 0, result.output
     payload = json.loads(output.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "1.1"
 
 
 def test_score_markdown_without_output_fails_loud():
@@ -212,3 +213,64 @@ def test_score_markdown_without_output_fails_loud():
     result = runner.invoke(main, ["score", "--graph", str(FIXTURE)])
     assert result.exit_code != 0
     assert "--output" in result.output
+
+
+def test_score_json_gaps_filters_applied_default():
+    """filters_applied lista os padrões estruturais built-in por default."""
+    fa = _run_json()["metrics"]["gaps_detected"]["filters_applied"]
+    assert fa == [r"^ADR-\d+$", r"^#\d+$"]
+
+
+def test_score_json_exclude_gap_pattern_extends_and_filters():
+    """--exclude-gap-pattern entra em filters_applied e filtra os items."""
+    # fixture tem gap 'Foo/Bar'; --exclude-gap-pattern Bar o remove (substring)
+    payload = _run_json("--exclude-gap-pattern", "Bar")
+    gaps = payload["metrics"]["gaps_detected"]
+    assert gaps["filters_applied"] == [r"^ADR-\d+$", r"^#\d+$", "Bar"]
+    assert not any("Bar" in g for g in gaps["items"])
+    assert gaps["count"] == len(gaps["items"])
+
+
+def test_score_invalid_exclude_gap_pattern_fails_loud():
+    """regex inválido em --exclude-gap-pattern falha loud (não traceback cru)."""
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["score", "--graph", str(FIXTURE), "--format", "json",
+         "--exclude-gap-pattern", "["],
+    )
+    assert result.exit_code != 0
+    assert "exclude-gap-pattern" in result.output
+    assert "Traceback" not in result.output
+
+
+def test_filters_applied_patterns_are_effective(tmp_path: Path):
+    """Cada pattern declarado em filters_applied de fato remove uma entidade que casa.
+
+    Fecha o loop declarado→aplicado: filters_applied não pode mentir sobre o que
+    o filtro removeu (contrato cross-repo consumido pelo /wiki-lint).
+    """
+    pages = tmp_path / "pages"
+    pages.mkdir()
+    (tmp_path / "journals").mkdir()
+    (pages / "ref.md").write_text(
+        "- a [[ADR-001]]\n- a [[ADR-001]]\n"
+        "- b [[#19]]\n- b [[#19]]\n"
+        "- c [[Request TJPA-13]]\n- c [[Request TJPA-13]]\n"
+        "- d [[real-concept]]\n- d [[real-concept]]\n",
+        encoding="utf-8",
+    )
+    runner = CliRunner()
+    result = runner.invoke(
+        main,
+        ["score", "--graph", str(tmp_path), "--format", "json",
+         "--exclude-gap-pattern", "TJPA"],
+    )
+    assert result.exit_code == 0, result.output
+    gaps = json.loads(result.output)["metrics"]["gaps_detected"]
+    assert gaps["filters_applied"] == [r"^ADR-\d+$", r"^#\d+$", "TJPA"]
+    # cada pattern declarado é efetivo: nenhum item sobrevivente casa qualquer um
+    for pat in gaps["filters_applied"]:
+        assert not any(re.search(pat, item) for item in gaps["items"])
+    # conceito real preservado
+    assert "real-concept" in gaps["items"]
