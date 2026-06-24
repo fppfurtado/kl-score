@@ -16,16 +16,21 @@ import click
 
 from kl_score import __version__
 from kl_score.metrics import (
+    _GAP_NOISE_PATTERNS,
     enrichment_rate,
     gaps_detected,
     orphan_nodes,
 )
 from kl_score.parser import iter_pages
 
-JSON_SCHEMA_VERSION = "1.0"
+JSON_SCHEMA_VERSION = "1.1"
 
 
-def _compute_metrics(graph_path: Path, filter_namespace: str | None) -> dict:
+def _compute_metrics(
+    graph_path: Path,
+    filter_namespace: str | None,
+    exclude_gap_patterns: tuple[str, ...] = (),
+) -> dict:
     """Computa as 4 métricas v0 uma vez; consumido pelos caminhos markdown e json."""
     pages = list(iter_pages(graph_path, filter_namespace=filter_namespace))
     per_page = [
@@ -40,7 +45,10 @@ def _compute_metrics(graph_path: Path, filter_namespace: str | None) -> dict:
         "per_page": per_page,
         "total_links": sum(c for _, c in per_page),
         "orphans": orphan_nodes(graph_path),
-        "gaps": gaps_detected(graph_path),
+        "gaps": gaps_detected(
+            graph_path, exclude_patterns=list(exclude_gap_patterns)
+        ),
+        "gap_filters_applied": [*_GAP_NOISE_PATTERNS, *exclude_gap_patterns],
         "rate": enrichment_rate(graph_path),
     }
 
@@ -48,7 +56,7 @@ def _compute_metrics(graph_path: Path, filter_namespace: str | None) -> dict:
 def _build_json_payload(
     graph_path: Path, filter_namespace: str | None, m: dict
 ) -> dict:
-    """Monta o envelope JSON estável (schema_version 1.0) — contrato do /wiki-lint."""
+    """Monta o envelope JSON estável (schema_version 1.1) — contrato do /wiki-lint."""
     return {
         "schema_version": JSON_SCHEMA_VERSION,
         "graph": str(graph_path),
@@ -76,6 +84,7 @@ def _build_json_payload(
             "gaps_detected": {
                 "count": len(m["gaps"]),
                 "items": list(m["gaps"]),
+                "filters_applied": m["gap_filters_applied"],
             },
             "enrichment_rate": m["rate"],
         },
@@ -171,16 +180,26 @@ def main() -> None:
     type=click.Choice(["markdown", "json"]),
     default="markdown",
     help="Formato de saída. markdown (default) emite report standalone; "
-    "json emite envelope estável (schema_version 1.0) para consumo programático.",
+    "json emite envelope estável (schema_version 1.1) para consumo programático.",
+)
+@click.option(
+    "--exclude-gap-pattern",
+    "exclude_gap_patterns",
+    multiple=True,
+    help="Regex (substring, NÃO-ancorado) pra excluir entidades de "
+    "gaps_detected — ex.: namespaces externos. Repetível. Ruído estrutural "
+    "(ADR-NNN, #NN) já é filtrado por default; cuidado com padrões amplos "
+    "(ex.: 'ADR' casaria 'Padrão ADR de Workflow').",
 )
 def score(
     graph_path: Path,
     output_path: Path | None,
     filter_namespace: str | None,
     output_format: str,
+    exclude_gap_patterns: tuple[str, ...],
 ) -> None:
     """Computa 4 métricas v0 e emite report markdown ou JSON estável."""
-    m = _compute_metrics(graph_path, filter_namespace)
+    m = _compute_metrics(graph_path, filter_namespace, exclude_gap_patterns)
 
     if output_format == "json":
         rendered = json.dumps(

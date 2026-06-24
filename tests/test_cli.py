@@ -78,7 +78,7 @@ def _run_json(*extra: str) -> dict:
 def test_score_json_stdout_is_valid_envelope():
     """`score --format json` sem --output emite envelope JSON válido em stdout."""
     payload = _run_json()
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "1.1"
     assert payload["graph"] == str(FIXTURE)
     assert payload["filter_namespace"] is None
     assert isinstance(payload["pages_scanned"], int)
@@ -203,7 +203,7 @@ def test_score_json_to_file_writes_envelope(tmp_path: Path):
     )
     assert result.exit_code == 0, result.output
     payload = json.loads(output.read_text(encoding="utf-8"))
-    assert payload["schema_version"] == "1.0"
+    assert payload["schema_version"] == "1.1"
 
 
 def test_score_markdown_without_output_fails_loud():
