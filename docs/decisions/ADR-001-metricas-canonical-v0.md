@@ -187,3 +187,49 @@ Apenas 1 bloco enriched cross-graph apesar de 2 pages com property — denominad
 ### Status do ADR — preservado
 
 ADR-001 permanece `**Status:** Proposto`. Adendo segundo é re-calibração (4 thresholds revisados; 0 alterados; observação de signal emergente registrada) — não revisão maior nem substituição. Critério editorial análogo ao do Adendo primeiro 2026-06-19.
+
+## Adendo 2026-06-24 — Onda 4+: modo `--format json` (contrato de saída programática)
+
+**Contexto.** § Alternativas consideradas deste ADR descartou "Output JSON estável para pipeline programático" por YAGNI ("nenhum pipeline de consumo programático existe na Onda 3. Deferido Onda 4+"). A condição YAGNI caiu: a skill `/wiki-lint` da knowledge layer (meta-bridge [#19](https://github.com/fppfurtado/meta-bridge/issues/19), Onda 6 / Camada 4) materializou como consumidor real — precisa consumir programaticamente as listas de `orphan_nodes` e `gaps_detected` para dobrá-las no seu health report sem re-implementar a topologia (anti-duplicação per roadmap meta-system). Decomposição cross-repo **kl-score-first** (triage 2026-06-24): kl-score expõe o contrato; `/wiki-lint` referencia o schema real depois. Issue kl-score [#7](https://github.com/fppfurtado/kl-score/issues/7).
+
+**Decisão.** Adicionar `--format json|markdown` (default `markdown`) ao comando `score`. O modo `json` emite um envelope estável serializando as 4 métricas v0 **+ as listas** (não só os agregados). `--output` passa a opcional: modo `json` sem `--output` emite para **stdout** (interface programática natural — `kl-score score --graph X --format json | jq`); modo `markdown` sem `--output` falha loud (report markdown é file-based em `reports/`, per convenção). Comportamento `markdown` preservado integralmente quando `--format` é omitido.
+
+### Contrato do envelope (`schema_version: "1.0"`)
+
+```json
+{
+  "schema_version": "1.0",
+  "graph": "<path absoluto>",
+  "filter_namespace": "pages/knowledge-layer | null",
+  "pages_scanned": 3,
+  "metrics": {
+    "link_count":    { "total": 12, "per_page": [{ "page": "pages/x.md", "count": 7 }] },
+    "orphan_nodes":  { "count": 3,  "items": [{ "page": "journals/2026_06_19.md", "uuid": null, "excerpt": "..." }] },
+    "gaps_detected": { "count": 2,  "items": ["Foo/Bar", "missing-entity"] },
+    "enrichment_rate": 0.3077
+  }
+}
+```
+
+**Estabilidade do contrato (lido literalmente pelo `/wiki-lint`):**
+
+- `schema_version` é o ponto de versionamento; breaking change no shape incrementa o campo e dispara revisão do consumer.
+- `orphan_nodes.items[]` são objetos estruturados (`page`/`uuid`/`excerpt`), **não** `str(BlockRef)` — `__str__` é formatação humana truncada a 60 chars, instável como contrato. `page` é POSIX relativo ao **graph root** (orphan pode vir de `journals/`, não só `pages/`); `uuid` é `str | null` (orphan sem `id::` serializa `null` explícito — o consumidor deve tolerar `null`, não chave-ausente); `excerpt` é o `body_excerpt` do bloco.
+- `gaps_detected.items` são nomes de entidade em forma de **exibição** (`Foo/Bar`), não slug Logseq (`Foo___Bar`) — o slug é detalhe interno do lookup de existência.
+- `link_count.per_page` é **integral** (todas as pages do escopo); o truncamento top-20 é exclusivo da renderização markdown (formatação humana).
+- Listas determinísticas: envelope byte-idêntico entre runs sobre o mesmo graph.
+
+### Invariantes preservadas
+
+- **Read-only**: nenhum caminho de serialização muta o graph; escrita só em `--output`/stdout (preserva § Invariantes de implementação 1).
+- **Subset v0 inalterado**: o JSON serializa o que `metrics.py` já produz; nenhuma métrica/dimensão nova entra (escopo 4-métricas/2-dimensões preservado). A assimetria pré-existente — `orphan_nodes`/`gaps_detected`/`enrichment_rate` operam cross-graph, ignorando `filter_namespace` que só `link_count` respeita — é refletida fielmente no envelope; não é introduzida aqui.
+
+### Status do ADR — preservado
+
+ADR-001 permanece `**Status:** Proposto`. Adendo terceiro ativa uma alternativa antes deferida (extensão do contrato de saída) — não revisão maior nem substituição. Critério editorial análogo aos 2 Adendos prévios.
+
+### Cross-refs absolutos
+
+- Consumidor: [meta-bridge #19](https://github.com/fppfurtado/meta-bridge/issues/19) (`/wiki-lint`, Camada 4). Issue kl-score: [#7](https://github.com/fppfurtado/kl-score/issues/7).
+- Implementação: `kl_score/cli.py` (`_compute_metrics` compartilhado, `_build_json_payload`, opção `--format`).
+- Cobertura: `tests/test_cli.py::test_score_json_*` (10 tests cobrindo envelope, nullability de `uuid`, valores ancorados, per_page integral, namespace vazio, determinismo, fail-loud).

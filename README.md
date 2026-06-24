@@ -34,9 +34,15 @@ kl-score score \
 
 # scoring cross-graph (sem filtro)
 kl-score score --graph ~/Notes/logseq --output reports/full-graph.md
+
+# saída JSON estável para consumo programático (stdout, pipe-friendly)
+kl-score score --graph ~/Notes/logseq --format json | jq '.metrics.gaps_detected.items'
+
+# JSON em arquivo
+kl-score score --graph ~/Notes/logseq --format json --output reports/metrics.json
 ```
 
-Output: report markdown standalone em `reports/<date>.md` com seção `## Métricas v0` + 4 sub-seções por métrica + valores numéricos + listas quando relevante. Graph permanece **read-only** — kl-score nunca muta o graph. Property `quality-score::` é **lida** pelo parser desde a Onda 4 (page-level, curada manualmente pelo operador no Logseq desktop; ver [ADR-001 § Adendo 2026-06-19](docs/decisions/ADR-001-metricas-canonical-v0.md)); kl-score nunca **injeta** o property (decisão preservada per `meta-system` plano Onda 3 pré-tomada 4).
+Output: por default (`--format markdown`) um report markdown standalone com seção `## Métricas v0` + 4 sub-seções por métrica + valores numéricos + listas quando relevante; `--output` é obrigatório nesse modo. Com `--format json`, um envelope estável (`schema_version 1.0`) com as 4 métricas + listas estruturadas — emitido para **stdout** quando `--output` é omitido (interface programática consumida pelo `/wiki-lint`, meta-bridge #19; contrato em [ADR-001 § Adendo 2026-06-24](docs/decisions/ADR-001-metricas-canonical-v0.md)). Graph permanece **read-only** — kl-score nunca muta o graph. Property `quality-score::` é **lida** pelo parser desde a Onda 4 (page-level, curada manualmente pelo operador no Logseq desktop; ver [ADR-001 § Adendo 2026-06-19](docs/decisions/ADR-001-metricas-canonical-v0.md)); kl-score nunca **injeta** o property (decisão preservada per `meta-system` plano Onda 3 pré-tomada 4).
 
 ## Dev
 
