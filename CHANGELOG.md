@@ -11,6 +11,8 @@ Formato canonical `## [<version>] - <date>` (Keep-a-Changelog) — ativa o probe
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-06-24
+
 ### Added
 
 - Modo `--format json|markdown` (default `markdown`) no comando `score`:
