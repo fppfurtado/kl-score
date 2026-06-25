@@ -14,7 +14,10 @@ metadata:
       [{"to": "resource:default/logseq-graph", "edgeType": "reads-graph"}]
 spec:
   type: cli
+  lifecycle: production
   owner: fppfurtado
   system: cognitive
   dependsOn: # DERIVADO de constelacao.io/edges[].to — só p/ validade Backstage (on-ramp)
     - resource:default/logseq-graph
+  consumesApis: # conformance de schema (per logseq-notes ADR-005 SD3) — read-only à knowledge layer
+    - api:default/logseq-knowledge-layer
