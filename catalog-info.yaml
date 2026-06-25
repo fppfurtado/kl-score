@@ -1,0 +1,20 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: kl-score
+  description: CLI standalone de scoring objetivo de wiki health da knowledge layer; lê o graph read-only.
+  annotations:
+    constelacao.io/cluster: cognitive
+    constelacao.io/camada: cognitive
+    constelacao.io/hub: github:fppfurtado/meta-system
+    # arestas-de-saída tipadas — FONTE AUTORITATIVA (JSON-string; lida pelo probe de drift)
+    # edgeType ∈ writes-graph|reads-graph|consumes-cli|cc-plugin|build-dep; schema opcional (writes/reads-graph)
+    # INVARIANTE read-only: kl-score declara reads-graph, NUNCA writes-graph.
+    constelacao.io/edges: |
+      [{"to": "resource:default/logseq-graph", "edgeType": "reads-graph"}]
+spec:
+  type: cli
+  owner: fppfurtado
+  system: cognitive
+  dependsOn: # DERIVADO de constelacao.io/edges[].to — só p/ validade Backstage (on-ramp)
+    - resource:default/logseq-graph
